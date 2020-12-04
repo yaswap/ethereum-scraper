@@ -27,6 +27,8 @@ let web3
 let syncing = true
 let latestBlockNumber = null
 
+process.on('unhandledRejection', error => { throw error })
+
 function handleError (e) {
   console.error(e)
   process.exit(1)
@@ -48,7 +50,7 @@ if (SUPPORTS_WS) {
   web3 = new Web3(WEB3_URI)
 }
 
-function sleep (duration) {
+async function sleep (duration) {
   return new Promise(resolve => setTimeout(resolve, duration))
 }
 
@@ -213,20 +215,21 @@ function subscribe () {
   subscription.on('error', handleError)
 }
 
-function poll () {
+async function poll () {
   if (!BLOCKTIME) throw new Error('Invalid BLOCKTIME')
 
-  web3.eth.getBlockNumber()
-    .then(blockNumber => {
-      if (latestBlockNumber === blockNumber) {
-        return sleep(Number(BLOCKTIME))
-      } else {
-        return onNewBlock(blockNumber)
-      }
-    })
-    .then(poll)
+  while (true) {
+    const blockNumber = await web3.eth.getBlockNumber()
+    if (latestBlockNumber === blockNumber) {
+      await sleep(Number(BLOCKTIME))
+    } else {
+      await onNewBlock(blockNumber)
+    }
+  }
 }
 
-getLatestBlock()
-  .then(() => SUPPORTS_WS ? subscribe() : poll())
-  .then(() => sync())
+;(async () => {
+  await getLatestBlock()
+  SUPPORTS_WS ? subscribe() : poll()
+  sync()
+})()
