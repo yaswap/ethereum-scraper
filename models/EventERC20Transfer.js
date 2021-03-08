@@ -1,10 +1,6 @@
 const mongoose = require('mongoose')
 
-const EventSchema = new mongoose.Schema({
-  signature: {
-    type: String,
-    index: true
-  },
+const EventERC20TransferSchema = new mongoose.Schema({
   contractAddress: {
     type: String,
     index: true,
@@ -21,7 +17,7 @@ const EventSchema = new mongoose.Schema({
     lowercase: true
   },
   value: {
-    type: Number
+    type: String
   },
   txHash: {
     type: String,
@@ -46,5 +42,4 @@ const EventSchema = new mongoose.Schema({
   }
 })
 
-const Event = mongoose.model('Event', EventSchema)
-module.exports = Event
+module.exports = mongoose.model('EventERC20Transfer', EventERC20TransferSchema)
