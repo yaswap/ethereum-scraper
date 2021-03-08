@@ -78,7 +78,6 @@ const logParser = ({ address, topics, data }) => {
   if (!event) return false
 
   const { abi, model } = event
-  if (topics.length !== (abi.length - 1)) return false
 
   try {
     const decodedLog = Abi.decodeLog(abi, data, topics)
@@ -100,6 +99,8 @@ const logParser = ({ address, topics, data }) => {
       data: decodedLogWith0x
     }
   } catch (e) {
+    console.error('[log-parser]', { signature, data, topics })
+
     Sentry.withScope(scope => {
       scope.setTag('signature', signature)
 
