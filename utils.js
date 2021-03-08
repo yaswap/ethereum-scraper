@@ -77,7 +77,7 @@ const logParser = ({ address, topics, data }) => {
   const event = EVENT_SIG_MAP[signature]
   if (!event) return false
 
-  const { abi, type } = event
+  const { abi, model } = event
   if (topics.length !== (abi.length - 1)) return false
 
   try {
@@ -95,7 +95,7 @@ const logParser = ({ address, topics, data }) => {
       }, {})
 
     return {
-      type,
+      model,
       contractAddress: ensure0x(address),
       data: decodedLogWith0x
     }
@@ -113,10 +113,27 @@ const logParser = ({ address, topics, data }) => {
   }
 }
 
+const findSwapEventFromReq = async (model, req) => {
+  const web3 = req.app.get('web3')
+  const contractAddress = req.params.contractAddress.toLowerCase()
+
+  const [latest, tx] = await Promise.all([
+    web3.eth.getBlock('latest'),
+    model.findOne({ contractAddress }).exec()
+  ])
+
+  if (tx) {
+    tx.confirmations = latest.number - tx.blockNumber
+  }
+
+  return tx
+}
+
 module.exports = {
   parseNonZeroPositiveIntOrDefault,
   createCommonQuery,
   ensure0x,
   keccak256,
-  logParser
+  logParser,
+  findSwapEventFromReq
 }

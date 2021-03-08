@@ -40,7 +40,7 @@ const TransactionSchema = new mongoose.Schema({
     type: Number
   },
   value: {
-    type: Number
+    type: String
   }
 })
 

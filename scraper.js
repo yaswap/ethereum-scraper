@@ -142,9 +142,9 @@ async function handleBlock (blockNum) {
   const eventEntries = Object.entries(events)
   await Bluebird.map(eventEntries, async ([modelName, _events]) => {
     if (_events.length > 0) {
-      const model = eventList.find(event => event.model.modelName === modelName)
-      if (!model) throw new Error(`Unknown event model: ${modelName}`)
-      await model.insertMany(_events, { ordered: false })
+      const event = eventList.find(event => event.model.modelName === modelName)
+      if (!event) throw new Error(`Unknown event model: ${modelName}`)
+      await event.model.insertMany(_events, { ordered: false })
     }
   }, { concurrency: 1 })
 

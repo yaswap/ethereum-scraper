@@ -17,7 +17,7 @@ const EventERC20TransferSchema = new mongoose.Schema({
     lowercase: true
   },
   value: {
-    type: Number
+    type: String
   },
   txHash: {
     type: String,

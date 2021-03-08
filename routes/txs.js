@@ -28,7 +28,6 @@ router.get('/:account', asyncHandler(async (req, res) => {
     const json = tx.toJSON()
 
     delete json._id
-    delete json.verified
     delete json.__v
 
     json.confirmations = latest.number - tx.blockNumber
