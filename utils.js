@@ -1,4 +1,3 @@
-const Sentry = require('@sentry/node')
 const Abi = require('web3-eth-abi')
 const createKeccakHash = require('keccak')
 
@@ -99,17 +98,6 @@ const logParser = ({ address, topics, data }) => {
       data: decodedLogWith0x
     }
   } catch (e) {
-    console.error('[log-parser]', { signature, data, topics })
-
-    Sentry.withScope(scope => {
-      scope.setTag('signature', signature)
-
-      scope.setExtra('data', data)
-      scope.setExtra('topics', topics)
-
-      Sentry.captureException(e)
-    })
-
     return false
   }
 }
