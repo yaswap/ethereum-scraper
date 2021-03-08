@@ -92,7 +92,7 @@ async function handleBlock (blockNum) {
         .map(logParser)
         .filter(l => !!l)
         .forEach(({ model, contractAddress, data }) => {
-          const commons = { txHash: hash, blockHash, blockNumber, status, timestamp }
+          const commons = { hash, blockHash, blockNumber, status, timestamp }
 
           if (!events[model.modelName]) events[model.modelName] = []
           events[model.modelName].push({

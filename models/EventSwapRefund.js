@@ -6,7 +6,7 @@ const EventSwapRefundSchema = new mongoose.Schema({
     index: true,
     lowercase: true
   },
-  txHash: {
+  hash: {
     type: String,
     index: true,
     lowercase: true
