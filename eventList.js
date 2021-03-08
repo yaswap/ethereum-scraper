@@ -29,8 +29,5 @@ module.exports = [{
 {
   name: 'Refund()',
   model: EventSwapRefund,
-  abi: [{
-    type: 'bytes32',
-    name: 'secret'
-  }]
+  abi: []
 }]
