@@ -1,3 +1,4 @@
+const { ethers } = require("ethers");
 const Abi = require('web3-eth-abi')
 const createKeccakHash = require('keccak')
 
@@ -79,6 +80,7 @@ const logParser = ({ address, topics, data }) => {
   const { abi, model } = event
 
   try {
+    //const decodedLog = ethers.utils.interface.decodeEventlog(abi, data, topics)
     const decodedLog = Abi.decodeLog(abi, data, topics)
     const decodedLogWith0x = Object
       .entries(decodedLog)
@@ -103,11 +105,12 @@ const logParser = ({ address, topics, data }) => {
 }
 
 const findSwapEventFromReq = async (model, req) => {
-  const web3 = req.app.get('web3')
+  const ethersProvider = req.app.get('ethers')
+  const latestBlock = await ethersProvider.getBlockNumber();
   const contractAddress = req.params.contractAddress.toLowerCase()
 
   const [latest, tx] = await Promise.all([
-    web3.eth.getBlock('latest'),
+    ethersProvider.getBlockWithTransactions(latestBlock),
     model.findOne({ contractAddress }).exec()
   ])
 

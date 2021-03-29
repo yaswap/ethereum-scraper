@@ -4,11 +4,12 @@ const { parseNonZeroPositiveIntOrDefault } = require('../utils')
 const router = require('express').Router()
 
 router.get('/', asyncHandler(async (req, res, next) => {
-  const web3 = req.app.get('web3')
+  const ethersProvider = req.app.get('ethers')
   let { maxgap } = req.query
+  const latestBlock = await ethersProvider.getBlockNumber()
 
   const [latest, tx] = await Promise.all([
-    web3.eth.getBlock('latest'),
+    ethersProvider.getBlockWithTransactions(latestBlock),
     Transaction.findOne({}).sort('-blockNumber').select('blockNumber').exec()
   ])
 

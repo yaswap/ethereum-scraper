@@ -1,6 +1,6 @@
 const Sentry = require('@sentry/node')
 const Bluebird = require('bluebird')
-const Web3 = require('web3')
+const { ethers } = require("ethers");
 
 const eventList = require('./eventList')
 const Transaction = require('./models/Transaction')
@@ -23,7 +23,7 @@ if (!REORG_GAP) throw new Error('Invalid REORG_GAP')
 
 const SUPPORTS_WS = WEB3_URI.startsWith('ws')
 
-let web3
+let ethersProvider
 let syncing = true
 let latestBlockNumber = null
 
@@ -35,19 +35,11 @@ function handleError (e) {
 }
 
 if (SUPPORTS_WS) {
-  const provider = new Web3.providers.WebsocketProvider(WEB3_URI, {
-    clientConfig: {
-      maxReceivedFrameSize: 100000000,
-      maxReceivedMessageSize: 100000000
-    }
-  })
-
-  provider.on('error', handleError)
-  provider.on('end', handleError)
-
-  web3 = new Web3(provider)
+  ethersProvider = new ethers.providers.WebSocketProvider(WEB3_URI)
+  ethersProvider.on('error', handleError)
+  ethersProvider.on('end', handleError)
 } else {
-  web3 = new Web3(WEB3_URI)
+  ethersProvider = new ethers.providers.JsonRpcProvider(WEB3_URI)
 }
 
 async function sleep (duration) {
@@ -55,7 +47,7 @@ async function sleep (duration) {
 }
 
 async function getTransactionReceipt (hash, attempts = 1) {
-  const receipt = await web3.eth.getTransactionReceipt(hash)
+  const receipt = await ethersProvider.getTransactionReceipt(hash)
   if (receipt) return receipt
 
   if (attempts <= 3) {
@@ -74,7 +66,7 @@ async function handleBlock (blockNum) {
   }).exec()
   if (exist) return
 
-  const block = await web3.eth.getBlock(blockNum, true)
+  const block = await ethersProvider.getBlockWithTransactions(blockNum)
   if (!block) return
 
   const blockNumber = block.number
@@ -204,7 +196,7 @@ async function sync () {
 }
 
 async function getLatestBlock () {
-  latestBlockNumber = await web3.eth.getBlockNumber()
+  latestBlockNumber = await ethersProvider.getBlockNumber()
 }
 
 function onNewBlock (blockNumber) {
@@ -216,20 +208,20 @@ function onNewBlock (blockNumber) {
 }
 
 function subscribe () {
-  const subscription = web3.eth.subscribe('newBlockHeaders')
-
-  subscription.on('data', block => {
-    if (block) onNewBlock(block.number)
+  ethersProvider.on('block', (blockNumber) => {
+    onNewBlock(blockNumber)
   })
 
-  subscription.on('error', handleError)
+  ethersProvider.on('error', (error) => {
+    handleError(error)
+  })
 }
 
 async function poll () {
   if (!BLOCKTIME) throw new Error('Invalid BLOCKTIME')
 
   while (true) {
-    const blockNumber = await web3.eth.getBlockNumber()
+    const blockNumber = await ethersProvider.getBlockNumber()
     if (latestBlockNumber === blockNumber) {
       await sleep(Number(BLOCKTIME))
     } else {

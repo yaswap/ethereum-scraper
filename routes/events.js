@@ -6,7 +6,7 @@ const { createCommonQuery, findSwapEventFromReq } = require('../utils')
 const router = require('express').Router()
 
 router.get('/erc20Transfer/:contractAddress', asyncHandler(async (req, res) => {
-  const web3 = req.app.get('web3')
+  const ethersProvider = req.app.get('ethers')
   const { contractAddress } = req.params
 
   const { address } = req.query
@@ -22,8 +22,9 @@ router.get('/erc20Transfer/:contractAddress', asyncHandler(async (req, res) => {
     ]
   }, null, options)
 
+  const latestBlock = await ethersProvider.getBlockNumber();
   const [latest, txs] = await Promise.all([
-    web3.eth.getBlock('latest'),
+    ethersProvider.getBlockWithTransactions(latestBlock),
     q.exec()
   ])
 
