@@ -75,8 +75,12 @@ async function handleBlock (blockNum) {
 
   const events = {}
   let transactions = []
+  const blockTransaction = []
+  for (let tx of block.transactions) {
+    blockTransaction.push({ ...tx, input: tx.data })
+  }
 
-  await Bluebird.map(block.transactions, async ({ hash, from, to, input, value }) => {
+  await Bluebird.map(blockTransaction, async ({ hash, from, to, input, value }) => {
     try {
       const { status, contractAddress, logs } = await getTransactionReceipt(hash)
 
