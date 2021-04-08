@@ -79,8 +79,6 @@ const logParser = ({ address, topics, data }) => {
   const { abi, model } = event
 
   try {
-    // TODO use ethers for decode log 
-    // const decodedLog = ethers.utils.interface.decodeEventlog(abi, data, topics)
     const decodedLog = Abi.decodeLog(abi, data, topics)
     const decodedLogWith0x = Object
       .entries(decodedLog)
