@@ -104,7 +104,7 @@ const logParser = ({ address, topics, data }) => {
 
 const findSwapEventFromReq = async (model, req) => {
   const ethersProvider = req.app.get('ethers')
-  const latestBlock = await ethersProvider.getBlockNumber();
+  const latestBlock = await ethersProvider.getBlockNumber()
   const contractAddress = req.params.contractAddress.toLowerCase()
 
   const [latest, tx] = await Promise.all([

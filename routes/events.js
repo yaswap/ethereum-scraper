@@ -22,7 +22,7 @@ router.get('/erc20Transfer/:contractAddress', asyncHandler(async (req, res) => {
     ]
   }, null, options)
 
-  const latestBlock = await ethersProvider.getBlockNumber();
+  const latestBlock = await ethersProvider.getBlockNumber()
   const [latest, txs] = await Promise.all([
     ethersProvider.getBlockWithTransactions(latestBlock),
     q.exec()

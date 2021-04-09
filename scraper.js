@@ -1,6 +1,6 @@
 const Sentry = require('@sentry/node')
 const Bluebird = require('bluebird')
-const { ethers } = require("ethers");
+const { ethers } = require('ethers')
 
 const eventList = require('./eventList')
 const Transaction = require('./models/Transaction')
@@ -76,7 +76,7 @@ async function handleBlock (blockNum) {
   const events = {}
   let transactions = []
   const blockTransaction = []
-  for (let tx of block.transactions) {
+  for (const tx of block.transactions) {
     blockTransaction.push({ ...tx, input: tx.data })
   }
 
