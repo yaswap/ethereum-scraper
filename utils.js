@@ -103,11 +103,12 @@ const logParser = ({ address, topics, data }) => {
 }
 
 const findSwapEventFromReq = async (model, req) => {
-  const web3 = req.app.get('web3')
+  const ethersProvider = req.app.get('ethers')
+  const latestBlock = await ethersProvider.getBlockNumber()
   const contractAddress = req.params.contractAddress.toLowerCase()
 
   const [latest, tx] = await Promise.all([
-    web3.eth.getBlock('latest'),
+    ethersProvider.getBlockWithTransactions(latestBlock),
     model.findOne({ contractAddress }).exec()
   ])
 

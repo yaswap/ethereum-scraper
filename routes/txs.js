@@ -4,7 +4,7 @@ const { createCommonQuery } = require('../utils')
 const router = require('express').Router()
 
 router.get('/:account', asyncHandler(async (req, res) => {
-  const web3 = req.app.get('web3')
+  const ethersProvider = req.app.get('ethers')
   const { account } = req.params
 
   const { filter, options, pagination } = createCommonQuery(req.query)
@@ -17,8 +17,9 @@ router.get('/:account', asyncHandler(async (req, res) => {
     ]
   }, null, options)
 
+  const latestBlock = ethersProvider.getBlockNumber()
   const [latest, txs] = await Promise.all([
-    web3.eth.getBlock('latest'),
+    ethersProvider.getBlockWithTransactions(latestBlock),
     q.exec()
   ])
 

@@ -1,6 +1,6 @@
 const Sentry = require('@sentry/node')
 
-const Web3 = require('web3')
+const { ethers } = require('ethers')
 const express = require('express')
 const helmet = require('helmet')
 const compression = require('compression')
@@ -14,7 +14,7 @@ const {
 if (!PORT) throw new Error('Invalid PORT')
 
 const app = express()
-const web3 = new Web3(WEB3_URI)
+const ethersProvider = new ethers.providers.JsonRpcProvider(WEB3_URI)
 
 if (NODE_ENV === 'production') {
   app.use(Sentry.Handlers.requestHandler())
@@ -24,7 +24,7 @@ app.use(helmet())
 app.use(compression())
 app.use(require('./middlewares/httpHelpers'))
 app.set('etag', false)
-app.set('web3', web3)
+app.set('ethers', ethersProvider)
 
 app.use('/status', require('./routes/status'))
 app.use('/txs', require('./routes/txs'))
