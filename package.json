@@ -1,6 +1,6 @@
 {
   "name": "ethereum-scraper",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Ethereum Scraper (Mainly eth_getTransactionsByAccount)",
   "main": "index.js",
   "bin": {
