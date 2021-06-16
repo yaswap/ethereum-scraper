@@ -17,9 +17,8 @@ router.get('/:account', asyncHandler(async (req, res) => {
     ]
   }, null, options)
 
-  const latestBlock = await ethersProvider.getBlockNumber()
-  const [latest, txs] = await Promise.all([
-    ethersProvider.getBlockWithTransactions(latestBlock),
+  const [latestBlock, txs] = await Promise.all([
+    ethersProvider.getBlockNumber(),
     q.exec()
   ])
 
@@ -31,7 +30,7 @@ router.get('/:account', asyncHandler(async (req, res) => {
     delete json._id
     delete json.__v
 
-    json.confirmations = latest.number - tx.blockNumber
+    json.confirmations = latestBlock - tx.blockNumber
 
     return json
   })
