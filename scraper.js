@@ -39,7 +39,7 @@ if (SUPPORTS_WS) {
   ethersProvider.on('error', handleError)
   ethersProvider.on('end', handleError)
 } else {
-  ethersProvider = new ethers.providers.JsonRpcProvider(WEB3_URI)
+  ethersProvider = new ethers.providers.StaticJsonRpcProvider(WEB3_URI)
 }
 
 async function sleep (duration) {

@@ -14,7 +14,7 @@ const {
 if (!PORT) throw new Error('Invalid PORT')
 
 const app = express()
-const ethersProvider = WEB3_URI.startsWith('ws') ? new ethers.providers.WebSocketProvider(WEB3_URI) : new ethers.providers.JsonRpcProvider(WEB3_URI)
+const ethersProvider = WEB3_URI.startsWith('ws') ? new ethers.providers.WebSocketProvider(WEB3_URI) : new ethers.providers.StaticJsonRpcProvider(WEB3_URI)
 
 if (NODE_ENV === 'production') {
   app.use(Sentry.Handlers.requestHandler())
