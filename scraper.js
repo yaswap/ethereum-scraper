@@ -229,7 +229,7 @@ async function poll () {
     if (latestBlockNumber === blockNumber) {
       await sleep(Number(BLOCKTIME))
     } else {
-      await onNewBlock(blockNumber)
+      await onNewBlock(latestBlockNumber + 1)
     }
   }
 }
