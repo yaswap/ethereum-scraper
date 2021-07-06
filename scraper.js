@@ -4,7 +4,7 @@ const { ethers, BigNumber, logger } = require('ethers')
 
 const eventList = require('./eventList')
 const Transaction = require('./models/Transaction')
-const { logParser } = require('./utils')
+const { logParser, isSwapTransaction, EVENT_SIG_MAP } = require('./utils')
 
 const {
   WEB3_URI,
@@ -13,7 +13,8 @@ const {
   START_BLOCK,
   END_BLOCK,
   REORG_GAP,
-  BLOCKTIME
+  BLOCKTIME,
+  SWAP_ONLY_MODE
 } = process.env
 
 if (!MAX_BLOCK_BATCH_SIZE) throw new Error('Invalid MAX_BLOCK_BATCH_SIZE')
@@ -39,7 +40,7 @@ if (SUPPORTS_WS) {
   ethersProvider.on('error', handleError)
   ethersProvider.on('end', handleError)
 } else {
-  ethersProvider = new ethers.providers.JsonRpcProvider(WEB3_URI)
+  ethersProvider = new ethers.providers.StaticJsonRpcProvider(WEB3_URI)
 }
 
 async function sleep (duration) {
@@ -75,12 +76,16 @@ async function handleBlock (blockNum) {
 
   const events = {}
   let transactions = []
-  const blockTransaction = []
-  for (const tx of block.transactions) {
-    blockTransaction.push({ ...tx, input: tx.data })
+  let blockTransactions = block.transactions.map(tx => ({ ...tx, input: tx.data }))
+
+  if (SWAP_ONLY_MODE === 'true') {
+    const eventTopics = Object.keys(EVENT_SIG_MAP)
+    const blockEvents = await ethersProvider.getLogs({ topics: [eventTopics], fromBlock: blockNum, toBlock: blockNum })
+    const blockTransactionsWithEvents = blockEvents.map(e => e.transactionHash)
+    blockTransactions = blockTransactions.filter(tx => isSwapTransaction(tx) || blockTransactionsWithEvents.includes(tx.hash))
   }
 
-  await Bluebird.map(blockTransaction, async ({ hash, from, to, input, value }) => {
+  await Bluebird.map(blockTransactions, async ({ hash, from, to, input, value }) => {
     try {
       const { status, contractAddress, logs } = await getTransactionReceipt(hash)
 
