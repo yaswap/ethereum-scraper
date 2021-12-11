@@ -41,6 +41,7 @@ app.use((err, req, res, next) => {
   return res.notOk(status, message)
 })
 
-app.listen(PORT)
-
-console.log(`API is running on ${PORT}`)
+ethersProvider.ready.then(() => {
+  app.listen(PORT)
+  console.log(`API is running on ${PORT}`)
+})

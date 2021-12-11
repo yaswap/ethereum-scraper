@@ -239,12 +239,6 @@ async function poll () {
   }
 }
 
-;(async () => {
-  await getLatestBlock()
-  SUPPORTS_WS ? subscribe() : poll()
-  sync()
-})()
-
 //Patch for RSK Support
 ethersProvider.formatter.receipt = function (value) {
   const result = check(ethersProvider.formatter.formats.receipt, value)
@@ -289,3 +283,10 @@ function check(format, object) {
   }
   return result
 }
+
+;(async () => {
+  await ethersProvider.ready
+  await getLatestBlock()
+  SUPPORTS_WS ? subscribe() : poll()
+  sync()
+})()
