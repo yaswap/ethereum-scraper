@@ -19,7 +19,6 @@ const {
 
 if (!MAX_BLOCK_BATCH_SIZE) throw new Error('Invalid MAX_BLOCK_BATCH_SIZE')
 if (!MAX_TRANSACTION_BATCH_SIZE) throw new Error('Invalid MAX_TRANSACTION_BATCH_SIZE')
-if (!START_BLOCK) throw new Error('Invalid START_BLOCK')
 if (!REORG_GAP) throw new Error('Invalid REORG_GAP')
 
 const SUPPORTS_WS = WEB3_URI.startsWith('ws')
@@ -171,6 +170,9 @@ async function sync () {
   let startFrom
   if (lastBlockInRange) {
     startFrom = lastBlockInRange + 1
+  } else if (!START_BLOCK) {
+    await getLatestBlock()
+    startFrom = latestBlockNumber - 3800 // sync 60 minutes ago
   } else {
     startFrom = Number(START_BLOCK)
   }
