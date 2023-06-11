@@ -1,6 +1,7 @@
 const Sentry = require('@sentry/node')
 const Bluebird = require('bluebird')
 const { ethers, BigNumber, logger } = require('ethers')
+const debug = require('debug')('scraper')
 
 const eventList = require('./eventList')
 const Transaction = require('./models/Transaction')
@@ -58,16 +59,39 @@ async function getTransactionReceipt (hash, attempts = 1) {
   throw new Error('Unable to fetch transaction receipt')
 }
 
+const handleBlockTimeout = 30000 // 30 seconds timeout
+
+const exit = (blockNum) => {
+  debug(`Self-terminate due to handleBlock (block ${blockNum}) hangs in ${handleBlockTimeout/1000} seconds !!!`)
+  process.kill(process.pid, "SIGTERM");
+}
+
 async function handleBlock (blockNum) {
   if (!blockNum) return
+
+  debug(`handleBlock ${blockNum}`)
+
+  // Add timeout for handling block execution
+  const handleBlockTimeoutAction = setTimeout(function(){
+    exit(blockNum)
+  }, handleBlockTimeout);
+  debug(`Add timeout action ${handleBlockTimeoutAction} for block "${blockNum}"`)
 
   const exist = await Transaction.findOne({
     blockNumber: blockNum
   }).exec()
-  if (exist) return
+  if (exist) {
+    debug(`Already process this block, delete timeout action ${handleBlockTimeoutAction} for block "${blockNum}"`)
+    clearTimeout(handleBlockTimeoutAction);
+    return
+  }
 
   const block = await ethersProvider.getBlockWithTransactions(blockNum)
-  if (!block) return
+  if (!block) {
+    debug(`Can't find this block, delete timeout action ${handleBlockTimeoutAction} for block "${blockNum}"`)
+    clearTimeout(handleBlockTimeoutAction);
+    return
+  }
 
   const blockNumber = block.number
   const blockHash = block.hash
@@ -161,7 +185,10 @@ async function handleBlock (blockNum) {
     log.push(`${progress}%`)
   }
 
-  console.log(log.join(' '))
+  debug(`Delete timeout action ${handleBlockTimeoutAction} for block "${blockNum}"`)
+  clearTimeout(handleBlockTimeoutAction);
+  debug(`Complete handleBlock ${blockNum}`)
+  debug(log.join(' '))
 }
 
 async function sync () {
@@ -182,28 +209,32 @@ async function sync () {
     batch.push(handleBlock(i))
 
     if (batch.length === Number(MAX_BLOCK_BATCH_SIZE)) {
+      debug(`Syncing ${MAX_BLOCK_BATCH_SIZE} blocks: ${startFrom-MAX_BLOCK_BATCH_SIZE+1} -> ${startFrom}`)
       await Promise.all(batch)
+      debug(`Completed syncing ${MAX_BLOCK_BATCH_SIZE} blocks: ${startFrom-MAX_BLOCK_BATCH_SIZE+1} -> ${startFrom}`)
       batch = []
     }
 
     if (END_BLOCK && i >= Number(END_BLOCK)) {
-      console.log('Reached END_BLOCK', END_BLOCK)
+      debug('Reached END_BLOCK', END_BLOCK)
       break
     }
 
     if (latestBlockNumber && i >= latestBlockNumber) {
-      console.log('Reached latestBlockNumber', latestBlockNumber)
+      debug('Reached latestBlockNumber', latestBlockNumber)
       break
     }
   }
 
   if (batch.length !== 0) {
+    debug(`Syncing ${batch.length} blocks: ${startFrom-batch.length+1} -> ${startFrom}`)
     await Promise.all(batch)
+    debug(`Completed syncing ${batch.length} blocks`)
   }
 
   syncing = false
 
-  console.log('Synced!')
+  debug('Synced!')
 }
 
 async function getLatestBlock () {

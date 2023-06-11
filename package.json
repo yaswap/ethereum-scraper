@@ -15,7 +15,7 @@
     "test": "standard",
     "api": "PROCESS_TYPE=api node index.js",
     "scraper": "PROCESS_TYPE=scraper node index.js",
-    "start": "node index.js"
+    "start": "DEBUG=scraper node index.js"
   },
   "author": "Harsh Vakharia",
   "license": "MIT",
@@ -23,6 +23,7 @@
     "@sentry/node": "^5.27.4",
     "bluebird": "^3.7.2",
     "compression": "^1.7.4",
+    "debug": "^4.2.0",
     "dotenv": "^8.2.0",
     "ethers": "^5.5.2",
     "express": "^4.17.1",

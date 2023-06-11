@@ -4,6 +4,7 @@ const { ethers } = require('ethers')
 const express = require('express')
 const helmet = require('helmet')
 const compression = require('compression')
+const debug = require('debug')('api')
 
 const {
   PORT,
