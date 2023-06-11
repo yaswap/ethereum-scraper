@@ -41,5 +41,6 @@ monitor &
 while true; do
     sleep 1
     DEBUG=scraper npm start >> output.log 2>&1
+    rm -rf scraper.pid
     echo "Restart ethereum_scraper !!!" >> output.log
 done
