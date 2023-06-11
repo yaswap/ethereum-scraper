@@ -59,7 +59,7 @@ async function getTransactionReceipt (hash, attempts = 1) {
   throw new Error('Unable to fetch transaction receipt')
 }
 
-const handleBlockTimeout = 30000 // 30 seconds timeout
+const handleBlockTimeout = 180000 // 180 seconds timeout
 
 const exit = (blockNum) => {
   debug(`Self-terminate due to handleBlock (block ${blockNum}) hangs in ${handleBlockTimeout/1000} seconds !!!`)

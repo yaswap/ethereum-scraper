@@ -5,7 +5,7 @@ cd $SCRIPT_DIR
 nvm use
 # 7 days shrink log and database
 shrink_duration="604800"
-occurrence_duration="180"
+occurrence_duration="480"
 
 monitor () {
     last_occurrence=`date +%s`
