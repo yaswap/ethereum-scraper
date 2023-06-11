@@ -3,13 +3,13 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 cd $SCRIPT_DIR
 nvm use
-# 7 days shrink log
-log_shrink_duration="604800"
+# 7 days shrink log and database
+shrink_duration="604800"
 occurrence_duration="180"
 
 monitor () {
     last_occurrence=`date +%s`
-    last_log_shrink=`date +%s`
+    last_shrink=`date +%s`
     while true; do
         sleep 60
         temp_occurrence=`grep "Complete handleBlock" output.log | tail -1 | awk '{print $1}' | xargs -i date -d "{}" "+%s"`
@@ -27,10 +27,12 @@ monitor () {
             last_occurrence=$temp_occurrence
             echo "Monitor process: Last block processing timestamp = $last_occurrence" >> output.log
         fi
-        no_shrink_duration=$(($current_timestamp-$last_log_shrink))
-        if (( $no_shrink_duration >= $log_shrink_duration )); then
-            echo "" > output.log
-            last_log_shrink=`date +%s`
+        current_shrink_duration=$(($current_timestamp-$last_shrink))
+        if (( $current_shrink_duration >= $shrink_duration )); then
+            database_name=`grep -i "MONGO_URI" .env | awk -F / '{print $NF}'`
+            echo "Shrink log and database" > output.log
+            mongo $database_name --eval "db.dropDatabase();"
+            last_shrink=`date +%s`
         fi
     done
 }
