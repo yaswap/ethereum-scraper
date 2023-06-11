@@ -199,7 +199,7 @@ async function sync () {
     startFrom = lastBlockInRange + 1
   } else if (!START_BLOCK) {
     await getLatestBlock()
-    startFrom = latestBlockNumber - 3800 // sync 60 minutes ago
+    startFrom = latestBlockNumber - 1800 // sync 6 hours ago
   } else {
     startFrom = Number(START_BLOCK)
   }
