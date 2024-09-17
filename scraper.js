@@ -5,7 +5,7 @@ const debug = require('debug')('scraper')
 
 const eventList = require('./eventList')
 const Transaction = require('./models/Transaction')
-const { logParser, isSwapTransaction, EVENT_SIG_MAP } = require('./utils')
+const { logParser, isSwapTransaction, EVENT_SIG_MAP, getBlockNumberWithTimeout } = require('./utils')
 
 const {
   WEB3_URI,
@@ -238,7 +238,7 @@ async function sync () {
 }
 
 async function getLatestBlock () {
-  latestBlockNumber = await ethersProvider.getBlockNumber()
+  latestBlockNumber = await getBlockNumberWithTimeout(ethersProvider)
 }
 
 function onNewBlock (blockNumber) {
@@ -263,7 +263,7 @@ async function poll () {
   if (!BLOCKTIME) throw new Error('Invalid BLOCKTIME')
 
   while (true) {
-    const blockNumber = await ethersProvider.getBlockNumber()
+    const blockNumber = await getBlockNumberWithTimeout(ethersProvider)
     if (latestBlockNumber === blockNumber) {
       await sleep(Number(BLOCKTIME))
     } else {

@@ -4,43 +4,61 @@ const { parseNonZeroPositiveIntOrDefault } = require('../utils')
 const router = require('express').Router()
 
 router.get('/', asyncHandler(async (req, res, next) => {
-  console.log('/status, Start handling status request')
+  req.app.get('debug')('/status, Start handling request')
   const ethersProvider = req.app.get('ethers')
   let { maxgap } = req.query
 
-  console.log('/status, Getting lattestBlock and tx')
-  const [latestBlock, tx] = await Promise.all([
-    ethersProvider.getBlockNumber(),
-    Transaction.findOne({}).sort('-blockNumber').select('blockNumber').exec()
-  ])
-  console.log(`/status, latestBlock = ${latestBlock} and tx = ${tx}`)
+  req.app.get('debug')('/status, Getting latestBlock and tx')
 
-  const difference = latestBlock - tx.blockNumber
-
-  maxgap = parseNonZeroPositiveIntOrDefault(maxgap, false)
-
-  res.set('Access-Control-Allow-Origin', '*')
-
-  const status = {
-    latestBlockNumber: latestBlock,
-    latestScrapedBlockNumber: tx.blockNumber,
-    difference
+  // Function to get block number with timeout
+  const getBlockNumberWithTimeout = async (provider, timeout = 10000) => {
+    return Promise.race([
+      provider.getBlockNumber(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+    ])
   }
 
-  console.log(`/status, Return status = ${status}`)
-  if (maxgap && difference > maxgap) {
-    res.status(503)
+  try {
+    const [latestBlock, tx] = await Promise.all([
+      getBlockNumberWithTimeout(ethersProvider),
+      Transaction.findOne({}).sort('-blockNumber').select('blockNumber').exec()
+    ])
+    req.app.get('debug')(`/status, latestBlock = ${latestBlock} and tx = ${tx}`)
+
+    const difference = latestBlock - tx.blockNumber
+
+    maxgap = parseNonZeroPositiveIntOrDefault(maxgap, false)
+
+    res.set('Access-Control-Allow-Origin', '*')
+
+    const status = {
+      latestBlockNumber: latestBlock,
+      latestScrapedBlockNumber: tx.blockNumber,
+      difference
+    }
+
+    req.app.get('debug')(`/status, Return status = ${status}`)
+    if (maxgap && difference > maxgap) {
+      res.status(503)
+      res.json({
+        status: 'ERROR',
+        data: { status }
+      })
+      return
+    }
+
     res.json({
-      status: 'ERROR',
+      status: 'OK',
       data: { status }
     })
-    return
+  } catch (error) {
+    req.app.get('debug')(`/status, Error: ${error.message}`)
+    res.status(500)
+    res.json({
+      status: 'ERROR',
+      message: error.message
+    })
   }
-
-  res.json({
-    status: 'OK',
-    data: { status }
-  })
 }))
 
 module.exports = router

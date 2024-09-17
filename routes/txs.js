@@ -1,9 +1,10 @@
 const asyncHandler = require('express-async-handler')
 const Transaction = require('../models/Transaction')
-const { createCommonQuery } = require('../utils')
+const { createCommonQuery, getBlockNumberWithTimeout } = require('../utils')
 const router = require('express').Router()
 
 router.get('/:account', asyncHandler(async (req, res) => {
+  req.app.get('debug')('/txs, Start handling request')
   const ethersProvider = req.app.get('ethers')
   const { account } = req.params
 
@@ -18,7 +19,7 @@ router.get('/:account', asyncHandler(async (req, res) => {
   }, null, options)
 
   const [latestBlock, txs] = await Promise.all([
-    ethersProvider.getBlockNumber(),
+    getBlockNumberWithTimeout(ethersProvider),
     q.exec()
   ])
 

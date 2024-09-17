@@ -2,10 +2,11 @@ const asyncHandler = require('express-async-handler')
 const EventERC20Transfer = require('../models/EventERC20Transfer')
 const EventSwapClaim = require('../models/EventSwapClaim')
 const EventSwapRefund = require('../models/EventSwapRefund')
-const { createCommonQuery, findSwapEventFromReq } = require('../utils')
+const { createCommonQuery, findSwapEventFromReq, getBlockNumberWithTimeout } = require('../utils')
 const router = require('express').Router()
 
 router.get('/erc20Transfer/:contractAddress', asyncHandler(async (req, res) => {
+  req.app.get('debug')('/events, Start handling request')
   const ethersProvider = req.app.get('ethers')
   const { contractAddress } = req.params
 
@@ -23,7 +24,7 @@ router.get('/erc20Transfer/:contractAddress', asyncHandler(async (req, res) => {
   }, null, options)
 
   const [latestBlock, txs] = await Promise.all([
-    ethersProvider.getBlockNumber(),
+    getBlockNumberWithTimeout(ethersProvider),
     q.exec()
   ])
 

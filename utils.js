@@ -107,7 +107,7 @@ const findSwapEventFromReq = async (model, req) => {
   const contractAddress = req.params.contractAddress.toLowerCase()
 
   const [latestBlock, tx] = await Promise.all([
-    ethersProvider.getBlockNumber(),
+    getBlockNumberWithTimeout(ethersProvider),
     model.findOne({ contractAddress }).exec()
   ])
 
@@ -139,6 +139,14 @@ function isSwapTransaction (tx) {
   if (tx.to && tx.data.startsWith('0x590e1ae3')) return true
 }
 
+// Function to get block number with timeout
+const getBlockNumberWithTimeout = async (provider, timeout = 10000) => {
+  return Promise.race([
+    provider.getBlockNumber(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
+  ])
+}
+
 module.exports = {
   EVENT_SIG_MAP,
   parseNonZeroPositiveIntOrDefault,
@@ -147,5 +155,6 @@ module.exports = {
   keccak256,
   logParser,
   findSwapEventFromReq,
-  isSwapTransaction
+  isSwapTransaction,
+  getBlockNumberWithTimeout
 }
