@@ -24,8 +24,8 @@ if (!REORG_GAP) throw new Error('Invalid REORG_GAP')
 process.on('unhandledRejection', error => { throw error })
 
 const HANDLE_BLOCK_TIMEOUT = 180000 // 180 seconds timeout
-const EXPECTED_PONG_BACK = 10000
-const KEEP_ALIVE_CHECK_INTERVAL = 20000
+const EXPECTED_PONG_BACK = 10000 // 10 seconds
+const KEEP_ALIVE_CHECK_INTERVAL = 60000 // 1 minute
 
 let ethersProvider
 let syncing = true
@@ -87,20 +87,17 @@ async function handleBlock (blockNum) {
   const handleBlockTimeoutAction = setTimeout(function(){
     exit(blockNum)
   }, HANDLE_BLOCK_TIMEOUT);
-  debug(`Add timeout action ${handleBlockTimeoutAction} for block "${blockNum}"`)
 
   const exist = await Transaction.findOne({
     blockNumber: blockNum
   }).exec()
   if (exist) {
-    debug(`Already process this block, delete timeout action ${handleBlockTimeoutAction} for block "${blockNum}"`)
     clearTimeout(handleBlockTimeoutAction);
     return
   }
 
   const block = await ethersProvider.getBlockWithTransactions(blockNum)
   if (!block) {
-    debug(`Can't find this block, delete timeout action ${handleBlockTimeoutAction} for block "${blockNum}"`)
     clearTimeout(handleBlockTimeoutAction);
     return
   }
@@ -197,7 +194,6 @@ async function handleBlock (blockNum) {
     log.push(`${progress}%`)
   }
 
-  debug(`Delete timeout action ${handleBlockTimeoutAction} for block "${blockNum}"`)
   clearTimeout(handleBlockTimeoutAction);
   debug(`Complete handleBlock ${blockNum}`)
   debug(log.join(' '))
@@ -321,14 +317,11 @@ function initEthersProvider() {
   })
 
   ethersProvider._websocket.on('pong', () => {
-    debug('ethersProvider WebSocket received pong, so connection is alive, clearing the timeout')
     clearInterval(pingTimeout)
   })
 
   ethersProvider._websocket.on('open', async () => {
     keepAliveInterval = setInterval(() => {
-      debug('ethersProvider WebSocket check if the connection is alive, sending a ping')
-
       ethersProvider._websocket.ping()
 
       // Use `WebSocket#terminate()`, which immediately destroys the connection,

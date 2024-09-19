@@ -11,8 +11,8 @@ if (!PORT) throw new Error('Invalid PORT');
 
 const app = express();
 let ethersProvider = null
-const EXPECTED_PONG_BACK = 10000
-const KEEP_ALIVE_CHECK_INTERVAL = 20000
+const EXPECTED_PONG_BACK = 10000 // 10 seconds
+const KEEP_ALIVE_CHECK_INTERVAL = 60000 // 1 minute
 
 function handleError (e) {
   debug('ethersProvider WebSocket error', e);
@@ -40,14 +40,11 @@ function initEthersProvider() {
   })
 
   ethersProvider._websocket.on('pong', () => {
-    debug('ethersProvider WebSocket received pong, so connection is alive, clearing the timeout')
     clearInterval(pingTimeout)
   })
 
   ethersProvider._websocket.on('open', () => {
     keepAliveInterval = setInterval(() => {
-      debug('ethersProvider WebSocket check if the connection is alive, sending a ping')
-
       ethersProvider._websocket.ping()
 
       // Use `WebSocket#terminate()`, which immediately destroys the connection,
