@@ -19,9 +19,9 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true });
 
-setTimeout(function () {
-  exit();
-}, 3600000);
+// setTimeout(function () {
+//   exit();
+// }, 3600000);
 
 function create_lock(cb) {
   var fname = 'scraper.pid';
