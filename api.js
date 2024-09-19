@@ -11,33 +11,54 @@ if (!PORT) throw new Error('Invalid PORT');
 
 const app = express();
 let ethersProvider = null
+const EXPECTED_PONG_BACK = 10000
+const KEEP_ALIVE_CHECK_INTERVAL = 20000
+
+function handleError (e) {
+  debug('ethersProvider WebSocket error', e);
+  process.exit(1)
+}
 
 function initEthersProvider() {
-  ethersProvider = WEB3_URI.startsWith('ws')
-    ? new ethers.providers.WebSocketProvider(WEB3_URI)
-    : new ethers.providers.StaticJsonRpcProvider(WEB3_URI);
+  let pingTimeout = null
+  let keepAliveInterval = null
+  ethersProvider = new ethers.providers.WebSocketProvider(WEB3_URI);
 
   ethersProvider.on('connect', () => {
     debug('ethersProvider WebSocket connected');
   });
 
-  ethersProvider.on('error', (error) => {
-    debug('ethersProvider WebSocket error', error);
-  });
-
-  ethersProvider.on('close', () => {
-    debug('ethersProvider WebSocket closed 1, attempting to reconnect...');
-    ethersProvider._websocket.terminate();
-    sleep(3000); // wait before reconnect
-    initEthersProvider(); // Reinitialize the event listeners
-  });
+  ethersProvider.on('error', handleError)
+  ethersProvider.on('end', handleError)
 
   ethersProvider._websocket.on('close', () => {
-    debug('ethersProvider WebSocket closed 2, attempting to reconnect...');
+    debug('ethersProvider WebSocket closed, attempting to reconnect...');
+    clearInterval(keepAliveInterval)
+    clearTimeout(pingTimeout)
     ethersProvider._websocket.terminate();
-    sleep(3000); // wait before reconnect
-    initEthersProvider(); // Reinitialize the event listeners
-  });
+    initEthersProvider()
+  })
+
+  ethersProvider._websocket.on('pong', () => {
+    debug('ethersProvider WebSocket received pong, so connection is alive, clearing the timeout')
+    clearInterval(pingTimeout)
+  })
+
+  ethersProvider._websocket.on('open', () => {
+    keepAliveInterval = setInterval(() => {
+      debug('ethersProvider WebSocket check if the connection is alive, sending a ping')
+
+      ethersProvider._websocket.ping()
+
+      // Use `WebSocket#terminate()`, which immediately destroys the connection,
+      // instead of `WebSocket#close()`, which waits for the close timer.
+      // Delay should be equal to the interval at which your server
+      // sends out pings plus a conservative assumption of the latency.
+      pingTimeout = setTimeout(() => {
+        ethersProvider._websocket.terminate()
+      }, EXPECTED_PONG_BACK)
+    }, KEEP_ALIVE_CHECK_INTERVAL)
+  })
 }
 
 initEthersProvider();

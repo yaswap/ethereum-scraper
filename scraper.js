@@ -21,32 +21,51 @@ const {
 if (!MAX_BLOCK_BATCH_SIZE) throw new Error('Invalid MAX_BLOCK_BATCH_SIZE')
 if (!MAX_TRANSACTION_BATCH_SIZE) throw new Error('Invalid MAX_TRANSACTION_BATCH_SIZE')
 if (!REORG_GAP) throw new Error('Invalid REORG_GAP')
+process.on('unhandledRejection', error => { throw error })
 
-const SUPPORTS_WS = WEB3_URI.startsWith('ws')
+const HANDLE_BLOCK_TIMEOUT = 180000 // 180 seconds timeout
+const EXPECTED_PONG_BACK = 10000
+const KEEP_ALIVE_CHECK_INTERVAL = 20000
 
 let ethersProvider
 let syncing = true
 let latestBlockNumber = null
 
-process.on('unhandledRejection', error => { throw error })
-
+// BEGINNING: UTILITY FUNCTIONS
 function handleError (e) {
-  console.error(e)
+  debug('ethersProvider WebSocket error', e);
   process.exit(1)
 }
 
-if (SUPPORTS_WS) {
-  ethersProvider = new ethers.providers.WebSocketProvider(WEB3_URI)
-  ethersProvider.on('error', handleError)
-  ethersProvider.on('end', handleError)
-} else {
-  ethersProvider = new ethers.providers.StaticJsonRpcProvider(WEB3_URI)
+function exit (blockNum) {
+  debug(`Self-terminate due to handleBlock (block ${blockNum}) hangs in ${HANDLE_BLOCK_TIMEOUT/1000} seconds !!!`)
+  process.kill(process.pid, "SIGTERM");
 }
 
 async function sleep (duration) {
   return new Promise(resolve => setTimeout(resolve, duration))
 }
 
+function check(format, object) {
+  const result = {}
+  for (const key in format) {
+    try {
+      let value = format[key](object[key])
+      if (value !== undefined) {
+        result[key] = value
+      }
+    }
+    catch (error) {
+      error.checkKey = key
+      error.checkValue = object[key]
+      throw error
+    }
+  }
+  return result
+}
+// END: UTILITY FUNCTIONS
+
+// BEGINNING: PARSE BLOCKS/EVENTS FUNCTIONS
 async function getTransactionReceipt (hash, attempts = 1) {
   const receipt = await ethersProvider.getTransactionReceipt(hash)
   if (receipt) return receipt
@@ -59,13 +78,6 @@ async function getTransactionReceipt (hash, attempts = 1) {
   throw new Error('Unable to fetch transaction receipt')
 }
 
-const handleBlockTimeout = 180000 // 180 seconds timeout
-
-const exit = (blockNum) => {
-  debug(`Self-terminate due to handleBlock (block ${blockNum}) hangs in ${handleBlockTimeout/1000} seconds !!!`)
-  process.kill(process.pid, "SIGTERM");
-}
-
 async function handleBlock (blockNum) {
   if (!blockNum) return
 
@@ -74,7 +86,7 @@ async function handleBlock (blockNum) {
   // Add timeout for handling block execution
   const handleBlockTimeoutAction = setTimeout(function(){
     exit(blockNum)
-  }, handleBlockTimeout);
+  }, HANDLE_BLOCK_TIMEOUT);
   debug(`Add timeout action ${handleBlockTimeoutAction} for block "${blockNum}"`)
 
   const exist = await Transaction.findOne({
@@ -192,6 +204,7 @@ async function handleBlock (blockNum) {
 }
 
 async function sync () {
+  syncing = true
   const lastBlockInRange = await Transaction.getLastBlockInRange(START_BLOCK, END_BLOCK)
 
   let startFrom
@@ -258,68 +271,81 @@ function subscribe () {
     handleError(error)
   })
 }
+// END: PARSE BLOCKS/EVENTS FUNCTIONS
 
-async function poll () {
-  if (!BLOCKTIME) throw new Error('Invalid BLOCKTIME')
+// BEGINNING: MAIN LOGIC
+function initEthersProvider() {
+  let pingTimeout = null
+  let keepAliveInterval = null
+  ethersProvider = new ethers.providers.WebSocketProvider(WEB3_URI);
+  //Patch for RSK Support
+  ethersProvider.formatter.receipt = function (value) {
+    const result = check(ethersProvider.formatter.formats.receipt, value)
 
-  while (true) {
-    const blockNumber = await getBlockNumberWithTimeout(ethersProvider)
-    if (latestBlockNumber === blockNumber) {
-      await sleep(Number(BLOCKTIME))
-    } else {
-      await onNewBlock(latestBlockNumber + 1)
-    }
-  }
-}
-
-//Patch for RSK Support
-ethersProvider.formatter.receipt = function (value) {
-  const result = check(ethersProvider.formatter.formats.receipt, value)
-
-  if (result.root != null) {
-    if (result.root.length <= 4) {
-      result.root = result.root == '0x' ? '0x0' : result.root
-      const tx_root = BigNumber.from(result.root).toNumber()
-      if (tx_root === 0 || tx_root === 1) {
-        if (result.status != null && (result.status !== tx_root)) {
-          logger.throwArgumentError("alt-root-status/status mismatch", "value", { root: result.root, status: result.status })
+    if (result.root != null) {
+      if (result.root.length <= 4) {
+        result.root = result.root == '0x' ? '0x0' : result.root
+        const tx_root = BigNumber.from(result.root).toNumber()
+        if (tx_root === 0 || tx_root === 1) {
+          if (result.status != null && (result.status !== tx_root)) {
+            logger.throwArgumentError("alt-root-status/status mismatch", "value", { root: result.root, status: result.status })
+          }
+          result.status = tx_root
+          delete result.root
         }
-        result.status = tx_root
-        delete result.root
+        else {
+          logger.throwArgumentError("invalid alt-root-status", "value.root", result.root)
+        }
       }
-      else {
-        logger.throwArgumentError("invalid alt-root-status", "value.root", result.root)
+      else if (result.root.length !== 66) {
+        logger.throwArgumentError("invalid root hash", "value.root", result.root)
       }
     }
-    else if (result.root.length !== 66) {
-      logger.throwArgumentError("invalid root hash", "value.root", result.root)
-    }
+
+    return result
   }
 
-  return result
+  ethersProvider.on('connect', () => {
+    debug('ethersProvider WebSocket connected');
+  });
+
+  ethersProvider.on('error', handleError)
+  ethersProvider.on('end', handleError)
+
+  ethersProvider._websocket.on('close', () => {
+    debug('ethersProvider WebSocket closed, attempting to reconnect...');
+    clearInterval(keepAliveInterval)
+    clearTimeout(pingTimeout)
+    ethersProvider._websocket.terminate();
+    initEthersProvider()
+  })
+
+  ethersProvider._websocket.on('pong', () => {
+    debug('ethersProvider WebSocket received pong, so connection is alive, clearing the timeout')
+    clearInterval(pingTimeout)
+  })
+
+  ethersProvider._websocket.on('open', async () => {
+    keepAliveInterval = setInterval(() => {
+      debug('ethersProvider WebSocket check if the connection is alive, sending a ping')
+
+      ethersProvider._websocket.ping()
+
+      // Use `WebSocket#terminate()`, which immediately destroys the connection,
+      // instead of `WebSocket#close()`, which waits for the close timer.
+      // Delay should be equal to the interval at which your server
+      // sends out pings plus a conservative assumption of the latency.
+      pingTimeout = setTimeout(() => {
+        ethersProvider._websocket.terminate()
+      }, EXPECTED_PONG_BACK)
+    }, KEEP_ALIVE_CHECK_INTERVAL)
+
+    await ethersProvider.ready
+    await getLatestBlock()
+    subscribe()
+    sync()
+  })
 }
 
-function check(format, object) {
-  const result = {}
-  for (const key in format) {
-    try {
-      let value = format[key](object[key])
-      if (value !== undefined) {
-        result[key] = value
-      }
-    }
-    catch (error) {
-      error.checkKey = key
-      error.checkValue = object[key]
-      throw error
-    }
-  }
-  return result
-}
-
-;(async () => {
-  await ethersProvider.ready
-  await getLatestBlock()
-  SUPPORTS_WS ? subscribe() : poll()
-  sync()
-})()
+initEthersProvider()
+// END: MAIN LOGIC

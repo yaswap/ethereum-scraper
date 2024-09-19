@@ -15,7 +15,7 @@
     "test": "standard",
     "api": "PROCESS_TYPE=api node index.js",
     "scraper": "PROCESS_TYPE=scraper node index.js",
-    "start": "DEBUG=* node index.js"
+    "start": "DEBUG=api,scraper node index.js"
   },
   "author": "Harsh Vakharia",
   "license": "MIT",
