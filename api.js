@@ -10,24 +10,37 @@ const { PORT, WEB3_URI, NODE_ENV } = process.env;
 if (!PORT) throw new Error('Invalid PORT');
 
 const app = express();
-const ethersProvider = WEB3_URI.startsWith('ws')
-  ? new ethers.providers.WebSocketProvider(WEB3_URI)
-  : new ethers.providers.StaticJsonRpcProvider(WEB3_URI);
+let ethersProvider = null
 
-ethersProvider.on('connect', () => {
-  debug('ethersProvider WebSocket connected');
-});
-
-ethersProvider.on('error', (error) => {
-  debug('ethersProvider WebSocket error', error);
-});
-
-ethersProvider.on('close', () => {
-  debug('ethersProvider WebSocket closed, attempting to reconnect...');
+function initEthersProvider() {
   ethersProvider = WEB3_URI.startsWith('ws')
     ? new ethers.providers.WebSocketProvider(WEB3_URI)
     : new ethers.providers.StaticJsonRpcProvider(WEB3_URI);
-});
+
+  ethersProvider.on('connect', () => {
+    debug('ethersProvider WebSocket connected');
+  });
+
+  ethersProvider.on('error', (error) => {
+    debug('ethersProvider WebSocket error', error);
+  });
+
+  ethersProvider.on('close', () => {
+    debug('ethersProvider WebSocket closed 1, attempting to reconnect...');
+    ethersProvider._websocket.terminate();
+    sleep(3000); // wait before reconnect
+    initEthersProvider(); // Reinitialize the event listeners
+  });
+
+  ethersProvider._websocket.on('close', () => {
+    debug('ethersProvider WebSocket closed 2, attempting to reconnect...');
+    ethersProvider._websocket.terminate();
+    sleep(3000); // wait before reconnect
+    initEthersProvider(); // Reinitialize the event listeners
+  });
+}
+
+initEthersProvider();
 
 if (NODE_ENV === 'production') {
   app.use(Sentry.Handlers.requestHandler());
@@ -57,5 +70,5 @@ app.use((err, req, res, next) => {
 
 ethersProvider.ready.then(() => {
   let server = app.listen(PORT);
-  console.log(`API is running on ${PORT}`);
+  debug(`API is running on ${PORT}`);
 });
