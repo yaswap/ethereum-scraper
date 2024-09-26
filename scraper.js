@@ -273,6 +273,7 @@ function subscribe () {
 function initEthersProvider() {
   let pingTimeout = null
   let keepAliveInterval = null
+  let pingCount = 0
   ethersProvider = new ethers.providers.WebSocketProvider(WEB3_URI);
   //Patch for RSK Support
   ethersProvider.formatter.receipt = function (value) {
@@ -321,14 +322,21 @@ function initEthersProvider() {
   })
 
   ethersProvider._websocket.on('open', async () => {
+    debug('ethersProvider WebSocket open connection...');
     keepAliveInterval = setInterval(() => {
       ethersProvider._websocket.ping()
+      pingCount++
+      if (pingCount >= 30) {
+        debug('ethersProvider WebSocket ping...');
+        pingCount = 0
+      }
 
       // Use `WebSocket#terminate()`, which immediately destroys the connection,
       // instead of `WebSocket#close()`, which waits for the close timer.
       // Delay should be equal to the interval at which your server
       // sends out pings plus a conservative assumption of the latency.
       pingTimeout = setTimeout(() => {
+        debug('ethersProvider WebSocket ping timeout...');
         ethersProvider._websocket.terminate()
       }, EXPECTED_PONG_BACK)
     }, KEEP_ALIVE_CHECK_INTERVAL)
