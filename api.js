@@ -14,6 +14,16 @@ let ethersProvider = null
 const EXPECTED_PONG_BACK = 10000 // 10 seconds
 const KEEP_ALIVE_CHECK_INTERVAL = 60000 // 1 minute
 
+if (NODE_ENV === 'production') {
+  app.use(Sentry.Handlers.requestHandler());
+}
+
+app.use(helmet());
+app.use(compression());
+app.use(require('./middlewares/httpHelpers'));
+app.set('etag', false);
+app.set('debug', debug);
+
 function handleError (e) {
   debug('ethersProvider WebSocket error', e);
   process.exit(1)
@@ -41,6 +51,9 @@ function initEthersProvider() {
   })
 
   ethersProvider._websocket.on('pong', () => {
+    if (pingCount === 0) {
+      debug('ethersProvider WebSocket pong...');
+    }
     clearInterval(pingTimeout)
   })
 
@@ -64,20 +77,11 @@ function initEthersProvider() {
       }, EXPECTED_PONG_BACK)
     }, KEEP_ALIVE_CHECK_INTERVAL)
   })
+
+  app.set('ethers', ethersProvider);
 }
 
 initEthersProvider();
-
-if (NODE_ENV === 'production') {
-  app.use(Sentry.Handlers.requestHandler());
-}
-
-app.use(helmet());
-app.use(compression());
-app.use(require('./middlewares/httpHelpers'));
-app.set('etag', false);
-app.set('ethers', ethersProvider);
-app.set('debug', debug);
 
 app.use('/status', require('./routes/status'));
 app.use('/txs', require('./routes/txs'));
